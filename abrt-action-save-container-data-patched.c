@@ -105,14 +105,22 @@ void dump_docker_info(struct dump_dir *dd, const char *root_dir)
             continue;
         }
 
-        g_autofree char *docker_inspect_cmdline = NULL;
-        if (root_dir != NULL)
-            docker_inspect_cmdline = g_strdup_printf("chroot %s /bin/sh -c \"docker inspect %s\"", root_dir, container_id);
-        else
-            docker_inspect_cmdline = g_strdup_printf("docker inspect %s", container_id);
+        // Construccion segura mediante arreglo de argumentos
+        const char *args [7];
+        int i = 0;
 
-        log_debug("Executing: '%s'", docker_inspect_cmdline);
-        output = libreport_run_in_shell_and_save_output(0, docker_inspect_cmdline, "/", NULL);
+        if (root_dir != NULL){
+            args[i++] = "chroot";
+            args[i++] = root_dir;
+        }
+        args[i++] = "docker";
+        args[i++] = "inspect";
+        args[i++] = container_id;
+        args[i++] = NULL; // Terminador nulo obligatorio para execvp
+
+        log_debug("Executing safe array without shell");
+        // Ejecucion segura : no interpreta metacaracteres de terminal
+        output = libreport_run_command_and_save_output(0, (char **)args, "/", NULL);
 
         if (output == NULL || strcmp(output, "[]\n") == 0)
         {
